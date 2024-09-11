@@ -1,0 +1,66 @@
+services:
+  nginx:
+    container_name: devmasters_nginx
+    image: nginx
+    ports:
+      - "0.0.0.0:50003:80"
+    volumes:
+      - production_media:/app/media
+      - production_static:/app/static
+      - ./compose/production/nginx/:/etc/nginx/conf.d
+    depends_on:
+      - django
+      - postgres
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+    networks:
+      - production_devmasters
+
+
+  django:
+    container_name: devmasters_django
+    build:
+      context: .
+      dockerfile: compose/production/django/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .envs/.production/.django
+      - .envs/.production/.postgres
+    depends_on:
+      - postgres
+    command: bash /start
+    volumes:
+      - production_media:/app/media
+      - production_static:/app/static
+    networks:
+      - production_devmasters
+
+
+  postgres:
+    container_name: devmasters_postgres
+    image: postgres:16.3
+    volumes:
+      - production_postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .envs/.production/.postgres
+    ports:
+      - "5438:5432"
+    expose:
+      - "5438"
+    networks:
+      - production_devmasters
+
+
+
+volumes:
+  production_postgres_data: { }
+  production_media: { }
+  production_static: { }
+
+networks:
+  production_devmasters:
+    driver: bridge
